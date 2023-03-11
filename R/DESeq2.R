@@ -21,6 +21,7 @@ library(grid)
 library(berryFunctions)
 library(readr)
 library(textshape)
+library(stringr)
 
 # Rscript -e "rmarkdown::render(         './DESeq2/DESeq2.Rmd',         params=list(             max_fdr=0.05,             min_lfc=1,             cookscutoff=TRUE,             indfilter=FALSE,             countFile='../feature_count/counts.strict.txt',             annoFile='https://raw.githubusercontent.com/radio1988/OneStopRNAseq/master/snakemake/envs/anno_tables/mm10.gencode.vm25.te_included.anno.txt',             metaFile='../meta/meta.xlsx',             contrastFile='../meta/contrast.de.xlsx',             blackSamples='sampleXXXXX,sampleYYY'             ),         output_file='DESeq2.html')" > DESeq2/DESeq2.log 2>&1 ;D=DESeq2; rm -f $D/$D.zip && [ -d $D ] && zip -rq  $D/$D.zip $D/ &>> DESeq2/DESeq2.log;
 
@@ -31,8 +32,8 @@ cookscutoff <- TRUE
 countFile <- "feature_count/counts.strict.txt"
 # annoFile <- "https://raw.githubusercontent.com/radio1988/OneStopRNAseq/master/snakemake/envs/anno_tables/mm10.gencode.vm25.te_included.anno.txt"
 annoFile <- "https://raw.githubusercontent.com/radio1988/OneStopRNAseq/master/snakemake/workflow/resources/anno_tables/mm10.gencode.vm25.te_included.anno.txt"
-metaFile <- "meta/meta.xlsx"
-contrastFile <- "meta/contrast.de.xlsx"
+metaFile <- "meta/meta_sample_names.xlsx"
+contrastFile <- "meta/contrast.de_sample_names.xlsx"
 blackSamples <- 'sampleXXXXX,sampleYYY'
 
 ## Functions used:
@@ -50,6 +51,22 @@ df <- column_to_rownames(df, 'Geneid')
 colnames(df) <- gsub("\\.bam$", "", colnames(df))
 colnames(df) <- gsub("sorted_reads.", "", colnames(df))
 colnames(df) <- gsub("mapped_reads.", "", colnames(df))
+### rename column names
+# colnames(df) <- c("Chr", "Start", "End", "Strand", "Length",
+# 									"A1", "A2", "A3", "B1", "B2", "B3",
+# 									"C1", "C2", "C3", "D1", "D2", "D3",
+# 									"E1", "E2", "E3", "F1", "F2", "F3",
+# 									"G1", "G2", "G3", "H1", "H2", "H3")
+colnames(df) <- c("Chr", "Start", "End", "Strand", "Length",
+									"DMSO_1", "DMSO_2", "DMSO_3", 
+									"PF-06873600_1", "PF-06873600_2", "PF-06873600_3", 
+									"Alisertib_1", "Alisertib_2", "Alisertib_3", 
+									"Docetaxel_1", "Docetaxel_2", "Docetaxel_3", 
+									"T/P_1", "T/P_2", "T/P_3", 
+									"Etoposide_1", "Etoposide_2", "Etoposide_3", 
+									"Nutlin-3_1", "Nutlin-3_2", "Nutlin-3_3", 
+									"Palbociclib_1", "Palbociclib_2", "Palbociclib_3")
+
 df <- df %>% mutate_at(vars(6:ncol(df)), as.integer)
 cts <- as.matrix(df[, 6:ncol(df)])
 cts <- cts[, match(meta.df$SAMPLE_LABEL, colnames(cts))] # match order in meta
@@ -99,7 +116,7 @@ plotQC_PCA(dds, ntop = 5000)
 ## DEG analysis:
 # i <- 1
 for (i in 1:ncol(contrast.df)) {
-	name1 <- parse_name(contrast.df[1, i]) # would be treatment
+	name1 <- parse_name(contrast.df[1, i]) 
 	name2 <- parse_name(contrast.df[2, i]) # would be control
 	poss <- match(name1$names, gsub("group", "", resultsNames(dds)))
 	negs <- match(name2$names, gsub("group", "", resultsNames(dds)))
@@ -161,6 +178,7 @@ for (i in 1:ncol(contrast.df)) {
 	n2 <- dim(norm_exp)[2]
 	zscore.df <- zscore(resdata.sig[, (n1 - n2 + 1):n1])
 	rownames(zscore.df) <- resdata.sig[, 1]
+	colnames(zscore.df) <- meta.df$SAMPLE_LABEL # since we altered the sample names to match DESeq2 output, revert it back here
 	output_heatmap <- paste0("DEG_heatmap/", name, ".heatmap")
 	label_rows <- anno[anno$Gene %in% rownames(zscore.df), "Name"]
 	Heatmap(zscore.df, nclass = 1, coldata = coldata,
@@ -182,7 +200,7 @@ for (i in 1:ncol(contrast.df)) {
 		### match ENSEMBL to SYMBOL
 	label_rows <- anno[anno$Gene %in% rownames(zscore_mean.df), "Name"]
 	Heatmap(zscore_mean.df, show_rownames = TRUE,
-					labels_row = label_rows, labels_n = 50,
+					labels_row = label_rows, labels_n = 40,
 					fname = output_heatmap_mean_rowname,
 					main = paste(name, "LFC >", min_lfc, "FDR <", max_fdr))
 }
@@ -200,6 +218,7 @@ for (geneset_name in geneset_names) {
 		n2 <- dim(norm_exp)[2]
 		zscore.df <- zscore(tem_res[, (n1 - n2 + 1):n1])
 		rownames(zscore.df) <- tem_res[, 1]
+		colnames(zscore.df) <- meta.df$SAMPLE_LABEL
 		message("collection: ", collection_name)
 		
 		## plot: geneset
@@ -223,7 +242,7 @@ for (geneset_name in geneset_names) {
 		Heatmap(zscore_mean.df, nclass = 1, coldata = NULL, # use coldata = NULL to skip adding sample names
 						fname = output_heatmap_geneset_mean_rowname, show_rownames = TRUE,
 						labels_row = labels_row,
-						main = collection_name, labels_n = 55)
+						main = collection_name, labels_n = 40)
 		
 	}
 }

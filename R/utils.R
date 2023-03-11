@@ -39,9 +39,11 @@ zscore <- function(matrix) {
 
 get_zscore_mean <- function(zscore.df, group_label) {
 	# assuming the colname(zscore.df) match the order in group_label
+	# group_label <- meta.df$GROUP_LABEL
 	df <- t(zscore.df) %>% as.data.frame()
 	df$Name <- group_label
-	df <- df %>% group_by(Name) %>% summarise_each(mean) %>% select(-Name)
+	df <- df %>% group_by(Name) %>% summarise_each(mean) ## Caution: summarizse_each() reorderds the rows!
+	df <- df[match(unique(group_label), df$Name), ] %>% select(-Name) ## revert the row orders back
 	zscore_mean.df <- t(as.matrix(df))
 	colnames(zscore_mean.df) <- unique(group_label)
 	zscore_mean.df
@@ -52,6 +54,8 @@ parse_name <- function(name) {
 	name <- gsub(";$", "", name)
 	names <- strsplit(name, ";") [[1]]
 	name <- gsub(";", ".", name)
+	name <- name %>% str_replace("-", ".") %>% str_replace("/", ".") # since DESeq2 auto corrected the names
+	names <- names %>% str_replace("-", ".") %>% str_replace("/", ".")
 	return (list(name=name, names=names))
 }
 
